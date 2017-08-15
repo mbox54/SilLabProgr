@@ -12,7 +12,7 @@ class CDlgSelectReader : public CDialogEx
 	DECLARE_DYNAMIC(CDlgSelectReader)
 
 public:
-	// standard constructor
+	// standard constructor 
 	CDlgSelectReader(CWnd* pParent = NULL);   
 	CDlgSelectReader(HID_SMBUS_DEVICE * p_hidSmbus, BYTE * p_ucExitState, CWnd* pParent = NULL);
 
