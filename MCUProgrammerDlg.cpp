@@ -1303,7 +1303,7 @@ BOOL CMCUProgrammerDlg::ValidateSettings(PROGRAM_SETTINGS settings)
 // Timer
 void CMCUProgrammerDlg::StartTimer()
 {
-	m_nTimer = SetTimer(TIMER_PLUGCHECK, 250, NULL);
+	m_nTimer = SetTimer(TIMER_PLUGCHECK, 500, NULL);
 
 }
 
