@@ -2,7 +2,7 @@
 #include "stdafx.h"
 #include "LogFunctions.h"
 
-void LogMessage(CRichEditCtrl* richEditCtrl, BOOL status, const char* message, BOOL logToFile, CString logFilename)
+void LogMessage(CRichEditCtrl* richEditCtrl, BOOL status, const char * message, BOOL logToFile, CString logFilename)
 {
 	CString logMessage;
 	CString timeString;

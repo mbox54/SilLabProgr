@@ -133,6 +133,7 @@ void CMCUProgrammerDlg::DoDataExchange(CDataExchange* pDX)
 	//	DDX_Check(pDX, IDC_CHECK_ENDIAN, m_bBigEndianFormat);
 	//}}AFX_DATA_MAP
 	DDX_Control(pDX, IDC_STATIC_LOGO, m_Static_Logo);
+	DDX_Control(pDX, IDC_PROGRESS_LOAD, m_ProgressLoad);
 }
 
 BEGIN_MESSAGE_MAP(CMCUProgrammerDlg, CDialog)
@@ -151,6 +152,7 @@ BEGIN_MESSAGE_MAP(CMCUProgrammerDlg, CDialog)
 	//}}AFX_MSG_MAP
 	ON_WM_TIMER()
 	ON_WM_CTLCOLOR()
+	ON_COMMAND(ID_PROGRAMMENU_RESET, &CMCUProgrammerDlg::OnProgrammenuReset)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -163,21 +165,23 @@ BOOL CMCUProgrammerDlg::OnInitDialog()
 	// Set active state
 	m_exitState = 0;
 
-	// Define Colors
-	COLORREF clr_Green_Act = RGB(13, 215, 14);
-	COLORREF clr_Green_Dec = RGB(13, 95, 14);
-	COLORREF clr_Red_Act = RGB(235, 123, 94);
-	COLORREF clr_Red_Dec = RGB(95, 13, 14);
-
 	// Set Brush Colors /for LED indication
 	br_Led_Green_Light.CreateSolidBrush(clr_Green_Act);
 	br_Led_Green_Dark.CreateSolidBrush(clr_Green_Dec);
 	br_Led_Red_Light.CreateSolidBrush(clr_Red_Act);
-	br_Led_Red_Dark.CreateSolidBrush(clr_Red_Dec);
+	br_Led_Red_Dark.CreateSolidBrush(clr_Red_Dec);	
 
 	// Set LED Off
 	m_LED_GREEN_STATE = 0;
 	m_LED_RED_STATE = 0;
+
+	// Output LED Control
+	CWnd *pStatic_LED_Green = this->GetDlgItem(IDC_STATIC_STATE_LED_GREEN);
+	CWnd *pStatic_LED_Red = this->GetDlgItem(IDC_STATIC_STATE_LED_RED);
+
+	// Set LED Visible
+	pStatic_LED_Green->ShowWindow(SW_HIDE);
+	pStatic_LED_Red->ShowWindow(SW_HIDE);
 
 	// Correct App Path
 	SetCurrentApplicationDirectory();
@@ -186,6 +190,7 @@ BOOL CMCUProgrammerDlg::OnInitDialog()
 	SetIcon(m_hIcon, TRUE);			
 
 	// > Set Controls Init Font
+	// State Label
 	CFont *m_Font1 = new CFont;
 	m_Font1->CreatePointFont(120, _T("Arial Bold"));
 
@@ -194,6 +199,13 @@ BOOL CMCUProgrammerDlg::OnInitDialog()
 
 	CWnd *pStatic_PortStatus = this->GetDlgItem(IDC_STATIC_PORT_STATE);
 	pStatic_PortStatus->SetFont(m_Font1);
+
+	// LED Label
+	CFont *m_Font2 = new CFont;
+	m_Font2->CreatePointFont(960, _T("Arial Bold"));
+
+	pStatic_LED_Green->SetFont(m_Font2);
+	pStatic_LED_Red->SetFont(m_Font2);
 
 	// > Set output Init state
 	CString str;
@@ -266,8 +278,8 @@ void CMCUProgrammerDlg::OnPaint()
 	}
 	else
 	{
-
 		CDialog::OnPaint();
+		
 	}
 
 	// logo
@@ -296,6 +308,7 @@ void CMCUProgrammerDlg::OnPaint()
 
 	dc.StretchBlt(0, 0, rectLogo.Width(), rectLogo.Height(), &memdcLogo,
 		0, 0, imgLogo.bmWidth, imgLogo.bmHeight, SRCCOPY);
+
 
 }
 
@@ -357,7 +370,7 @@ void CMCUProgrammerDlg::OnProgrammenuConfigureprogramminginformation()
 		// if it is not in range, it must be set to an "in range" serial
 		if (m_SettingsHaveBeenProgrammed && m_ProgramSettings.serializeParts && ((m_CurrentSerialNumber != m_ProgramSettings.startingSerialNumber) && (m_CurrentSerialNumber < m_ProgramSettings.maxSerialNumber)))
 		{
-			if (MessageBox("Do you want to reset the current serial number to the starting serial number?", "Serialization Settings", MB_YESNO | MB_ICONQUESTION) == IDNO)
+			if (MessageBox(_T("Do you want to reset the current serial number to the starting serial number?"), _T("Serialization Settings"), MB_YESNO | MB_ICONQUESTION) == IDNO)
 			{
 				// If the user doesn't want to reset, save a temp starting number that is equal
 				// to the current serial for the window update, then restore the old starting serial
@@ -426,11 +439,11 @@ void CMCUProgrammerDlg::OnProgrammenuConfigureprogramminginformation()
 			
 			if (m_ProgramSettings.writeLockAddress == m_ProgramSettings.readLockAddress)
 			{
-				lockMessage.Format("  R/W Lock (0x%05X): 0x%02X\r\n", m_ProgramSettings.writeLockAddress, m_ProgramSettings.writeLockValue);
+				lockMessage.Format(_T("  R/W Lock (0x%05X): 0x%02X\r\n"), m_ProgramSettings.writeLockAddress, m_ProgramSettings.writeLockValue);
 			}
 			else
 			{
-				lockMessage.Format("  Write Lock (0x%05X): 0x%02X\r\n  Read Lock (0x%05X): 0x%02X\r\n", m_ProgramSettings.writeLockAddress, m_ProgramSettings.writeLockValue, m_ProgramSettings.readLockAddress, m_ProgramSettings.readLockValue);
+				lockMessage.Format(_T("  Write Lock (0x%05X): 0x%02X\r\n  Read Lock (0x%05X): 0x%02X\r\n"), m_ProgramSettings.writeLockAddress, m_ProgramSettings.writeLockValue, m_ProgramSettings.readLockAddress, m_ProgramSettings.readLockValue);
 			}
 
 			startingMessage += lockMessage;
@@ -439,7 +452,7 @@ void CMCUProgrammerDlg::OnProgrammenuConfigureprogramminginformation()
 		LogMessage(&m_Log, TRUE, startingMessage, m_ProgramSettings.logToFile, m_ProgramSettings.logFilename);
 
 		// Display the session start time and date
-		startingMessage.Format("%s - Starting New Programming Session", time.Format("%B %d %Y"));
+		startingMessage.Format(_T("%s - Starting New Programming Session"), time.Format("%B %d %Y"));
 		LogMessage(&m_Log, TRUE, startingMessage, m_ProgramSettings.logToFile, m_ProgramSettings.logFilename);
 
 		SetCurrentApplicationDirectory();
@@ -496,8 +509,16 @@ void CMCUProgrammerDlg::OnButtonProgramdevice()
 	CString partNumber;
 	CString errorMessage;
 
+	// Output State Control
 	CString str;
 	CWnd *pStatic_PortStatus = this->GetDlgItem(IDC_STATIC_PORT_STATE);
+
+	// Output LED Control
+	CWnd *pStatic_LED_Green = this->GetDlgItem(IDC_STATIC_STATE_LED_GREEN);
+	CWnd *pStatic_LED_Red = this->GetDlgItem(IDC_STATIC_STATE_LED_RED);
+
+	// Set Progress Control Output
+	m_ProgressLoad.SetPos(10);
 
 	BeginWaitCursor();
 
@@ -550,23 +571,33 @@ void CMCUProgrammerDlg::OnButtonProgramdevice()
 				}
 				*/
 
+				// Output State to StatusLabel
+				str.Truncate(0);
+				str.Append(_T("Программирование... Сброс памяти."));
+				
+				pStatic_PortStatus->SetWindowTextA(str);
+				UpdateData(FALSE);
+
+
 				if (FAILED(FLASHEraseUSB(m_DebugAdapter, DISABLE_DIALOGS, m_ProgramSettings.ecProtocol)))
 				{
-					// Set State
+					// Output State to StatusLabel
+					str.Truncate(0);
 					str.Append(_T("Ошибка связи с адаптером USB! -reset"));
+
+					pStatic_PortStatus->SetWindowTextA(str);
+					UpdateData(FALSE);
 
 					errorMessage.Format("Cannot Erase Code Space on Debug Adapter: %s", m_DebugAdapter);
 					LogMessage(&m_Log, FALSE, errorMessage, m_ProgramSettings.logToFile, m_ProgramSettings.logFilename);
 					error = TRUE;
 				}
-				else
-				{
-					// Devise worked after reset memory
-					str.Truncate(0);
-				}
 
 			}
 		}
+
+		// Set Progress Control Output
+		m_ProgressLoad.SetPos(20);
 
 		// Connect to the EC, log error if it cannot connect
 		if (!error)
@@ -596,17 +627,34 @@ void CMCUProgrammerDlg::OnButtonProgramdevice()
 			}
 			*/
 
+			
 			// > Check connected
+
+			// Output State to StatusLabel
+			str.Truncate(0);
+			str.Append(_T("Программирование... Установка связи с МК."));
+
+			pStatic_PortStatus->SetWindowTextA(str);
+			UpdateData(FALSE);
+
 			if (FAILED(ConnectUSB(m_DebugAdapter, m_ProgramSettings.ecProtocol, 1, DISABLE_DIALOGS)))
 			{
-				// Set State
+				// Output State to StatusLabel
+				str.Truncate(0);
 				str.Append(_T("Ошибка связи с адаптером USB!"));
+
+				pStatic_PortStatus->SetWindowTextA(str);
+				UpdateData(FALSE);
 
 				errorMessage.Format("Cannot Connect to Debug Adapter: %s", m_DebugAdapter);
 				LogMessage(&m_Log, FALSE, errorMessage, m_ProgramSettings.logToFile, m_ProgramSettings.logFilename);
 				error = TRUE;
 			}
+
 		}
+
+		// Set Progress Control Output
+		m_ProgressLoad.SetPos(30);
 
 
 		// If we are flash erasing the part, then
@@ -652,18 +700,34 @@ void CMCUProgrammerDlg::OnButtonProgramdevice()
 			}
 		}
 
+		// Set Progress Control Output
+		m_ProgressLoad.SetPos(40);
+
+
 		// Download first hex image (not banked)
 		// log error if it fails
 		if (!m_ProgramSettings.hexFileNotBanked.IsEmpty())
 		{
 			if (!error && Connected())
 			{
+				// Output State to StatusLabel
+				str.Truncate(0);
+				str.Append(_T("Программирование... Загрузка кода в МК."));
+
+				pStatic_PortStatus->SetWindowTextA(str);
+				UpdateData(FALSE);
+
+
 				HRESULT result;
 				result = Download(const_cast<char*>((const char*)m_ProgramSettings.hexFileNotBanked), 0, DISABLE_DIALOGS, 0, -1, 0, m_ProgramSettings.flashPersist);
 				if (FAILED(result))
 				{
-					// Set State
+					// Output State to StatusLabel
+					str.Truncate(0);
 					str.Append(_T("Ошибка загрузки прошивки!"));
+
+					pStatic_PortStatus->SetWindowTextA(str);
+					UpdateData(FALSE);
 
 					errorMessage.Format("Error Downloading Hex File (%s)", m_ProgramSettings.hexFileNotBanked);
 					LogMessage(&m_Log, FALSE, errorMessage, m_ProgramSettings.logToFile, m_ProgramSettings.logFilename);
@@ -675,6 +739,11 @@ void CMCUProgrammerDlg::OnButtonProgramdevice()
 				}
 			}
 		}
+
+
+		// Set Progress Control Output
+		m_ProgressLoad.SetPos(80);
+
 
 		// Download second hex image (bank1)
 		// log error if it fails
@@ -772,8 +841,17 @@ void CMCUProgrammerDlg::OnButtonProgramdevice()
 		*/
 
 		// Wait for device to finish any last minute routines after the download
+		// Output State to StatusLabel
+		str.Truncate(0);
+		str.Append(_T("Программирование... Завершение."));
+
+		pStatic_PortStatus->SetWindowTextA(str);
+		UpdateData(FALSE);
+
 		Sleep(500);
 
+		// Set Progress Control Output
+		m_ProgressLoad.SetPos(90);
 
 		// If we are serializing, write the serial number to the part, then check it
 		// and log an error if it doesn't match or fails
@@ -1063,11 +1141,21 @@ void CMCUProgrammerDlg::OnButtonProgramdevice()
 		// Log Success and increment Serial Number
 		if (!error)
 		{
-			// Set State
-			str.Append(_T("Готово! Выньте модуль."));
+			// Output State to StatusLabel
+			str.Truncate(0);
+			str.Append(_T("Успешно: установите следующий модуль."));
+
+			pStatic_PortStatus->SetWindowTextA(str);
+			UpdateData(FALSE);
+
 			m_LED_GREEN_STATE = 1;
 			m_LED_RED_STATE = 0;
 
+			// Set LED Visible
+			pStatic_LED_Green->ShowWindow(SW_SHOW);
+			pStatic_LED_Red->ShowWindow(SW_HIDE);
+
+			
 			CString serialString;
 			serialString.Format("with Serial %u", m_CurrentSerialNumber);
 			errorMessage.Format("Device %sProgrammed%s and Verified %s", (m_ProgramSettings.eraseCodeSpace ? "Erased, " : ""), (m_ProgramSettings.lockCodeMemory ? ", Locked" : ""), (m_ProgramSettings.serializeParts ? serialString : ""));
@@ -1102,18 +1190,29 @@ void CMCUProgrammerDlg::OnButtonProgramdevice()
 		else
 		{
 			// [ERROR OCCURED]
+			// Output State to StatusLabel
+			str.Truncate(0);
+			str.Append(_T("Ошибка: установите следующий модуль."));
+
+			pStatic_PortStatus->SetWindowTextA(str);
+			UpdateData(FALSE);
+
 
 			// Set State
 			m_LED_GREEN_STATE = 0;
 			m_LED_RED_STATE = 1;
+
+			// Set LED Visible
+			pStatic_LED_Green->ShowWindow(SW_HIDE);
+			pStatic_LED_Red->ShowWindow(SW_SHOW);
+
 		}
 
-		// Out to Interface control 
-		pStatic_PortStatus->SetWindowTextA(str);	
-
-		UpdateData(FALSE);
-	//	Invalidate();
 	}
+
+
+	// Set Progress Control Output
+	m_ProgressLoad.SetPos(100);
 
 	EndWaitCursor();
 }
@@ -1204,9 +1303,10 @@ BOOL CMCUProgrammerDlg::ValidateSettings(PROGRAM_SETTINGS settings)
 // Timer
 void CMCUProgrammerDlg::StartTimer()
 {
-	m_nTimer = SetTimer(TIMER_PLUGCHECK, 500, NULL);
+	m_nTimer = SetTimer(TIMER_PLUGCHECK, 250, NULL);
 
 }
+
 
 void CMCUProgrammerDlg::EditTimer()
 {
@@ -1214,10 +1314,28 @@ void CMCUProgrammerDlg::EditTimer()
 	// change interval time
 }
 
+
 void CMCUProgrammerDlg::StopTimer()
 {
 	KillTimer(m_nTimer);
 }
+
+
+void CMCUProgrammerDlg::StartTimerProgress()
+{
+	m_nTimerProgress = SetTimer(TIMER_PROGRESS, 200, NULL);
+
+	m_ProgressLoad.SetPos(25);
+}
+
+
+void CMCUProgrammerDlg::StopTimerProgress()
+{
+	KillTimer(m_nTimerProgress);
+
+	m_ProgressLoad.SetPos(100);
+}
+
 
 void CMCUProgrammerDlg::CheckUniversalReader()
 {
@@ -1291,7 +1409,12 @@ void CMCUProgrammerDlg::LatchController()
 					// [SFP has being plagged in]
 
 					// Set output comment
-					str.Append(_T("Прошиваю..."));
+					str.Append(_T("Программирование... "));
+					
+					// NOTE: Desicion: Set Progress Pos in Program routine
+					// NOTE: Timer can't interrupt download routine and show Progress
+					// Activate Progress Control
+			//		this->StartTimerProgress();
 
 					pStatic_PortStatus->SetWindowTextA(str);	// Out to Interface control 
 					UpdateData(FALSE);
@@ -1301,20 +1424,33 @@ void CMCUProgrammerDlg::LatchController()
 
 					Invalidate();
 
+					// Dectivate Progress Control
+			//		this->StopTimerProgress();
 				}
 				else											
 				{
 					// [SFP has being plagged out]
-					str.Append(_T("Вставьте модуль."));
+					str.Append(_T("Установите модуль."));
 
 					pStatic_PortStatus->SetWindowTextA(str);	// Out to Interface control 
 
-					// Set LED
 					// Set LED
 					m_LED_GREEN_STATE = 0;
 					m_LED_RED_STATE = 0;
 
 					Invalidate();
+					
+					// Output LED Control
+					CWnd *pStatic_LED_Green = this->GetDlgItem(IDC_STATIC_STATE_LED_GREEN);
+					CWnd *pStatic_LED_Red = this->GetDlgItem(IDC_STATIC_STATE_LED_RED);
+
+					// Set LED Visible
+					pStatic_LED_Green->ShowWindow(SW_HIDE);
+					pStatic_LED_Red->ShowWindow(SW_HIDE);
+
+					// Set Progress Control Output
+					m_ProgressLoad.SetPos(0);
+
 				}//else /if ((HID_SMBUS_MASK_GPIO_2 & latchValue) == 0)
 			}
 
@@ -1337,8 +1473,32 @@ void CMCUProgrammerDlg::OnProgrammenuSavesettings()
 
 void CMCUProgrammerDlg::OnTimer(UINT_PTR nIDEvent)
 {
-	// > Proceed Plug
-	CheckUniversalReader();
+	int iPos;
+
+	if (nIDEvent == TIMER_PLUGCHECK)
+	{
+		// > Proceed Plug
+		CheckUniversalReader();
+	}
+
+	if (nIDEvent == TIMER_PROGRESS)
+	{
+		// > Proceed Progress 
+		iPos = m_ProgressLoad.GetPos();
+
+		// check Limits
+		if (iPos > 65)
+		{
+			iPos = 5;
+		}
+		else
+		{
+			iPos += 6;
+		}
+
+		m_ProgressLoad.SetPos(iPos);
+
+	}	
 
 	CDialog::OnTimer(nIDEvent);
 }
@@ -1367,6 +1527,9 @@ HBRUSH CMCUProgrammerDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 		{
 			// [SET GREEN STATE]
 
+			pDC->SetBkColor(clr_Green_Act);
+			//pDC->SetTextColor(RGB(255, 0, 0));
+
 			return br_Led_Green_Light;
 		}
 		else
@@ -1381,18 +1544,37 @@ HBRUSH CMCUProgrammerDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 	{
 		if (m_LED_RED_STATE)
 		{
-			// [SET GREEN STATE]
+			// [SET RED STATE]
+
+			pDC->SetBkColor(clr_Red_Act);
 
 			return br_Led_Red_Light;
 		}
 		else
 		{
-			// [DOWN GREEN STATE]
+			// [DOWN RED STATE]
 
 			return br_Led_Red_Dark;
 		}
 	}
 
-
+	
 	return hbr;
+}
+
+
+void CMCUProgrammerDlg::OnProgrammenuReset()
+{
+	OnButtonProgramdevice();
+
+	CString str;
+	CWnd *pStatic_PortStatus = this->GetDlgItem(IDC_STATIC_PORT_STATE);
+
+	// Output State to StatusLabel
+	str.Truncate(0);
+	str.Append(_T("Модуль очищен, переподключите USB адаптер."));
+
+	pStatic_PortStatus->SetWindowTextA(str);
+	UpdateData(FALSE);
+
 }

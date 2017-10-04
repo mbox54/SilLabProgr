@@ -16,9 +16,11 @@
 
 #define DISABLE_DIALOGS			1
 #define TIMER_PLUGCHECK			0x01
+#define TIMER_PROGRESS			0x02
 
 #include "DlgSelectReader.h"
 #include "afxwin.h"
+#include "afxcmn.h"
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -67,7 +69,8 @@ protected:
 	UINT m_CurrentSerialNumber;
 
 	// Timer
-	UINT_PTR m_nTimer;						// timer controler
+	UINT_PTR m_nTimer;						// timer Check PlugModule event
+	UINT_PTR m_nTimerProgress;				// timer Progress animation
 
 	// Universal Reader
 	HID_SMBUS_DEVICE m_hidSmbus;
@@ -82,6 +85,15 @@ protected:
 	CBrush br_Led_Red_Light;
 	CBrush br_Led_Red_Dark;
 
+	// Define Colors
+	COLORREF clr_Green_Act = RGB(13, 215, 14);
+	COLORREF clr_Green_Dec = RGB(13, 95, 14);
+	COLORREF clr_Red_Act = RGB(215, 43, 44);
+	COLORREF clr_Red_Dec = RGB(95, 13, 14);
+
+	CStatic m_Static_Logo;
+	CProgressCtrl m_ProgressLoad;
+
 	// > Methods
 	// Service
 	void UpdateWindowProgramSettings();
@@ -95,6 +107,9 @@ protected:
 	void StartTimer();
 	void EditTimer();
 	void StopTimer();
+
+	void StartTimerProgress();
+	void StopTimerProgress();
 
 	// Universal Reader
 	void CheckUniversalReader();
@@ -123,7 +138,8 @@ protected:
 
 public:
 	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
-	CStatic m_Static_Logo;
+
+	afx_msg void OnProgrammenuReset();
 };
 
 //{{AFX_INSERT_LOCATION}}
